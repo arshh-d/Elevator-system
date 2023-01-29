@@ -1,5 +1,7 @@
 from .models import Elevator, ElevatorSystem, ElevatorRequest
 from threading import Thread
+from loguru import logger
+import time
 
 
 def create_elevators(system_name, system_id: int, max_floor, count: int):
@@ -26,24 +28,46 @@ class RunThread(Thread):
     def run(self):
         while True:
             final_run()
+            time.sleep(4)
 
 
-def move_to_floor(floor_number, elevator_object):
+def move_to_floor(floor_number: int, elevator_object: Elevator):
+    """moves elevator to given floor
+
+    Args:
+        floor_number (int): floor to move
+        elevator_object (Elevator): elevator which will move
+    """
     if floor_number > elevator_object.on_floor:
-        # Start going up
         elevator_object.status = 1
+        logger.info(
+            f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} moving UP")
     elif floor_number < elevator_object.on_floor:
-        # Start going down
         elevator_object.status = -1
+        logger.info(
+            f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} moving DOWN")
+        # logger.log(
+        #     f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} moving {elevator_object.status}")
+
     elevator_object.on_floor = floor_number
+    logger.info(
+        f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} reached on floor: {elevator_object.on_floor}")
+    logger.info(
+        f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} door opening")
+    elevator_object.door_open = True
     elevator_object.status = 0
+    logger.info(f"elevator status: HALT")
+    elevator_object.door_open = False
+    logger.info(
+        f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} door closing")
     elevator_object.save()
+    return elevator_object
 
 
 def get_nearest_elevator(elevator_system, request_start):
     elevators_working = Elevator.objects.filter(
-            elevator_system_id=elevator_system.elevator_system_id,
-            working=True)
+        elevator_system_id=elevator_system.elevator_system_id,
+        working=True)
     elevator_object = None
     min_distance = elevator_system.max_floor
     for elevator in elevators_working:
@@ -52,22 +76,32 @@ def get_nearest_elevator(elevator_system, request_start):
             elevator_object = elevator
     return elevator_object
 
-def process_request(elevator_system: ElevatorSystem):
 
+def process_request(elevator_system: ElevatorSystem):
+    """process request for provided system
+
+    Args:
+        elevator_system (ElevatorSystem): elevator_system which is being processed currently
+    """
     requests_pending = ElevatorRequest.objects.filter(
         elevator_system=elevator_system,
         is_active=True,
     ).order_by('request_time')
 
     for elev_request in requests_pending:
+        logger.info(
+            f"fetching pending request for elevator system: {elevator_system.elevator_system_id}")
+
+        logger.debug(f"processing request: {elev_request}")
         request_start = elev_request.requested_floor
         request_destination = elev_request.destination_floor
 
+        logger.debug(f"fetching nearest elevator for request: {elev_request}")
         elevator_object = get_nearest_elevator(elevator_system, request_start)
-
         elev_request.elevator = elevator_object
         elev_request.save()
-
+        logger.info(
+            f"selected closest elevator: {elevator_object.elevator_id}, elevator system: {elevator_system.elevator_system_id}")
         # Invalid Cases, this can be taken care of using ModelManagers earlier
         # 1
         if (request_destination < 0
@@ -83,17 +117,14 @@ def process_request(elevator_system: ElevatorSystem):
         elevator_object.door_open = False
 
         # move to elevator to the requested floor
-        move_to_floor(request_start, elevator_object)
-        elevator_object.door_open = True
+        elevator_object = move_to_floor(request_start, elevator_object)
         elevator_object.save()
 
         # Let people get in, Close the door
         elevator_object.door_open = False
 
         # move to elevator to destination floor
-        move_to_floor(request_destination, elevator_object)
-        elevator_object.door_open = True
-        elevator_object.door_open = False
+        elevator_object = move_to_floor(request_destination, elevator_object)
         elevator_object.save()
 
         elev_request.is_active = False
@@ -101,7 +132,8 @@ def process_request(elevator_system: ElevatorSystem):
 
 
 def final_run():
-
+    """process request for each system continuosly
+    """
     elevator_systems = ElevatorSystem.objects.all().order_by('elevator_system_id')
 
     try:
