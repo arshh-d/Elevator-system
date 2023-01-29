@@ -19,6 +19,14 @@ class Elevator(models.Model):
     on_floor = models.IntegerField(default=0)
     working = models.BooleanField(default=True)
     status = models.IntegerField(choices=CurrentStatus.choices,default=CurrentStatus.HALT)
+    door_open = models.BooleanField(default=False)
 
 
-    
+class ElevatorRequest(models.Model):
+
+    elevator = models.ForeignKey(Elevator, on_delete=models.CASCADE)
+    elevator_system = models.ForeignKey(ElevatorSystem, on_delete=models.CASCADE)
+    requested_floor = models.PositiveSmallIntegerField()
+    destination_floor = models.PositiveSmallIntegerField()
+    request_time = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
