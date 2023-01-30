@@ -145,7 +145,7 @@ def update_elevator_status(request) -> JsonResponse:
     """marks the given elevator as working or not working.
 
     Args:
-        request (_type_): padyload with details of the elevator to update
+        request (JsonResponse): padyload with details of the elevator to update
     """
     payload = json.loads(request.body.decode('utf-8'))
     try:

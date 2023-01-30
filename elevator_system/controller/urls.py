@@ -9,5 +9,5 @@ urlpatterns = [
     path('get_elevator/<int:system_id>/<int:elevator_id>/',
          get_elevator, name="get_elevator"),
     path('create_request/', create_request, name="create_request"),
-    path('update_status', update_elevator_status, name='update_status')
+    path('update_status/', update_elevator_status, name='update_status')
 ]
