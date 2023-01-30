@@ -4,7 +4,7 @@ from loguru import logger
 import time
 
 
-def create_elevators(system_name, system_id: int, max_floor, count: int):
+def create_elevators(system_name: str, system_id: int, max_floor, count: int) -> bool:
 
     new_system, created = ElevatorSystem.objects.get_or_create(
         elevator_system_id=system_id,
@@ -17,6 +17,7 @@ def create_elevators(system_name, system_id: int, max_floor, count: int):
         new_elevator = Elevator.objects.create(
             elevator_system_id=new_system, elevator_id=i+1)
         new_elevator.save()
+    return created
 
 
 class RunThread(Thread):
@@ -31,7 +32,7 @@ class RunThread(Thread):
             time.sleep(4)
 
 
-def move_to_floor(floor_number: int, elevator_object: Elevator):
+def move_to_floor(floor_number: int, elevator_object: Elevator) -> Elevator:
     """moves elevator to given floor
 
     Args:
@@ -46,25 +47,27 @@ def move_to_floor(floor_number: int, elevator_object: Elevator):
         elevator_object.status = -1
         logger.info(
             f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} moving DOWN")
-        # logger.log(
-        #     f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} moving {elevator_object.status}")
 
     elevator_object.on_floor = floor_number
     logger.info(
         f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} reached on floor: {elevator_object.on_floor}")
     logger.info(
         f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} door opening")
+
     elevator_object.door_open = True
     elevator_object.status = 0
-    logger.info(f"elevator status: HALT")
+    logger.info(
+        f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} HALT")
+
     elevator_object.door_open = False
     logger.info(
         f"elevator: {elevator_object.elevator_system_id.name}:{elevator_object.elevator_id} door closing")
+
     elevator_object.save()
     return elevator_object
 
 
-def get_nearest_elevator(elevator_system, request_start):
+def get_nearest_elevator(elevator_system: ElevatorSystem, request_start: int) -> Elevator:
     elevators_working = Elevator.objects.filter(
         elevator_system_id=elevator_system.elevator_system_id,
         working=True)
@@ -77,7 +80,7 @@ def get_nearest_elevator(elevator_system, request_start):
     return elevator_object
 
 
-def process_request(elevator_system: ElevatorSystem):
+def process_request(elevator_system: ElevatorSystem) -> None:
     """process request for provided system
 
     Args:
@@ -91,8 +94,8 @@ def process_request(elevator_system: ElevatorSystem):
     for elev_request in requests_pending:
         logger.info(
             f"fetching pending request for elevator system: {elevator_system.elevator_system_id}")
-
         logger.debug(f"processing request: {elev_request}")
+
         request_start = elev_request.requested_floor
         request_destination = elev_request.destination_floor
 
@@ -102,8 +105,7 @@ def process_request(elevator_system: ElevatorSystem):
         elev_request.save()
         logger.info(
             f"selected closest elevator: {elevator_object.elevator_id}, elevator system: {elevator_system.elevator_system_id}")
-        # Invalid Cases, this can be taken care of using ModelManagers earlier
-        # 1
+
         if (request_destination < 0
                 or request_destination > elevator_system.max_floor
                 or request_start < 0
@@ -119,9 +121,6 @@ def process_request(elevator_system: ElevatorSystem):
         # move to elevator to the requested floor
         elevator_object = move_to_floor(request_start, elevator_object)
         elevator_object.save()
-
-        # Let people get in, Close the door
-        elevator_object.door_open = False
 
         # move to elevator to destination floor
         elevator_object = move_to_floor(request_destination, elevator_object)

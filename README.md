@@ -1,8 +1,7 @@
 
 # Elevator-System
 
-This projects aims providing a utility for creating and managing an elevator system for a building by exposing RESTful API endpoints to interact with the system.
-.
+This projects aims towards providing a utility for creating and managing an elevator system for a building by exposing RESTful API endpoints to interact with the system.
 
 
 
@@ -16,7 +15,7 @@ This projects aims providing a utility for creating and managing an elevator sys
 
 - Make a request to go from one floor to other, and the controller system will automatically select the closet lift to the user
 
-- Mark any lift under maintenance and working status.
+- Mark any lift under maintenance or working status.
 
 
 
